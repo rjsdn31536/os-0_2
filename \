@@ -332,20 +332,11 @@ int main(){
 
 			// CASE 1_10. list_reverse <list_name>
 			else if(!strcmp(token, "reverse")){
-				// token : list name
-				token = strtok(NULL, seps);
-				ll_index = ll_index_num(token);
-
-				list_reverse(llList[ll_index].link);
 			}
 
-			// CASE 1_11. list_sort <list_name>
+			// CASE 1_11. list_sort
 			else if(!strcmp(token, "sort")){
-				// token : list name
-				token = strtok(NULL, seps);
-				ll_index = ll_index_num(token);
-
-				list_sort(llList[ll_index].link, less, NULL);
+				printf("list_sort\n");
 			}
 			// CASE 1_12. list_unique
 			else if(!strcmp(token, "unique")){
