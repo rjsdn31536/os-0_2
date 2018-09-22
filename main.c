@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "main.h"
 
 int main(){
@@ -6,7 +5,8 @@ int main(){
 	char *token;
 	char seps[4] = "\t _"; 
 	int del_index;
-	int ll_index, value, index, max_num, min_num;
+	int ll_index, ll_index2, value, index, index1, index2, max_num, min_num;
+	int bm_index;
 
 	while(1){
 		fgets(command, sizeof(command), stdin); // get command
@@ -43,6 +43,17 @@ int main(){
 
 			// CASE 0_2_3. create bitmap <bitmap_name> <bit_count> - bitmap 생성
 			else if(!strcmp(token, "bitmap")){
+				// token : bitmap_name
+				token = strtok(NULL, seps);
+				strcpy(bmList[bmList_num].name, token);
+				
+				// token : bit_count
+				token = strtok(NULL, seps);
+				sscanf(token, "%u", &bit_cnt_tmp);
+
+				bmList[bmList_num].bm = bitmap_create(bit_cnt_tmp);
+
+				bmList_num++;
 			}
 		}
 
@@ -59,8 +70,15 @@ int main(){
 					break;
 				}
 			}
-			// delete 하는 자료구조가 bitmap인지 확인, bitmap이 맞으면 flag = 2
-			// 채워넣어야함
+			// delete 하는 자료구조가 bitmap인지 확인, bitmap이 맞으면 flag = 3
+			for(i = 0; i < bmList_num; i++){
+				if(!strcmp(token, bmList[i].name)){
+					flag = 3;
+					del_index = i;
+					break;
+				}
+			}
+
 
 			// 자료구조가 list(flag == 1) 인 경우
 			if(flag == 1){
@@ -68,6 +86,15 @@ int main(){
 					llList[i] = llList[i+1];
 				}
 				llList_num--;
+			}
+
+			// 자료구조가 list(flag == 3) 인 경우
+			if(flag == 3){
+				bitmap_destroy(bmList[del_index].bm);
+				for(i=del_index; i<9; i++){
+					bmList[i] = bmList[i+1];
+				}
+				bmList_num--;
 			}
 
 		}
@@ -82,6 +109,20 @@ int main(){
 				if(!strcmp(token, llList[i].name)){
 					flag = 1;
 					ll_index = i;
+					break;
+				}
+				else if(!strcmp(token, bmList[i].name)){
+					flag = 3;
+					bm_index = i;
+					break;
+				}
+			}
+
+			// dumpdata 하는 자료구조가 dumpdata인지 확인, dumpdata가 맞으면 flag = 3
+			for(i = 0; i < bmList_num; i++){
+				if(!strcmp(token, bmList[i].name)){
+					flag = 3;
+					bm_index = i;
 					break;
 				}
 			}
@@ -104,10 +145,19 @@ int main(){
 				if(flag == 0)
 					printf("\n");
 			}
-		}
 
-		// CASE 0_5. command <list_name|hashtable_name|bitmap_name> [arguments] - 주어진 이름의 자료구조에 argument 이용하여 command 실행
-		else if(!strcmp(token, "command")){
+			// 자료구조가 list(flag == 3) 인 경우
+			else if(flag == 3){
+				for(i=0; i< bitmap_size(bmList[bm_index].bm);i++){
+					if(bitmap_test(bmList[bm_index].bm,i) == true) printf("1");
+					else printf("0");
+				}
+				printf("\n");
+			}
+
+			// CASE 0_5. command <list_name|hashtable_name|bitmap_name> [arguments] - 주어진 이름의 자료구조에 argument 이용하여 command 실행
+			else if(!strcmp(token, "command")){
+			}
 		}
 
 
@@ -180,9 +230,37 @@ int main(){
 				}
 			}
 
-			// CASE 1_2. list_splice
+			// CASE 1_2. list_splice <list_name1> <index> <list_name2> <index1> <index2>
 			else if(!strcmp(token, "splice")){
-				printf("list_splice\n");
+				// token : list name
+				token = strtok(NULL, seps);
+				ll_index = ll_index_num(token);
+				// token : index
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index);
+				// token : list name2
+				token = strtok(NULL, seps);
+				ll_index2 = ll_index_num(token);
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1);
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index2);
+
+				struct list_elem *e1, *e2, *e3;
+				e1 = list_begin((llList[ll_index].link));
+				e2 = list_begin((llList[ll_index2].link));
+				e3 = list_begin((llList[ll_index2].link));
+
+				for(i=0; i<index; i++)
+					e1=list_next(e1);
+				for(i=0; i<index1; i++)
+					e2=list_next(e2);
+				for(i=0; i<index2; i++)
+					e3=list_next(e3);
+
+				list_splice(e1, e2, e3);
 			}
 
 			// CASE 1_3. list_push
@@ -296,13 +374,6 @@ int main(){
 				e = list_prev(e);
 				struct list_item *f = list_entry(e, struct list_item, elem);
 				printf("%d\n",f->data);	
-
-//				for(e = list_begin((llList[ll_index].link)) ;
-//						list_next(e) != list_end((llList[ll_index].link)) ;
-//						e=list_next(e)){}
-//				// f는 e의 data
-//				struct list_item *f = list_entry(e, struct list_item, elem);
-//				printf("%d\n",f->data);
 			}
 
 			// CASE 1_8. list_size <list_name>
@@ -347,9 +418,23 @@ int main(){
 
 				list_sort(llList[ll_index].link, less, NULL);
 			}
-			// CASE 1_12. list_unique
+
+			// CASE 1_12. list_unique <list_name1> <list_name2>
 			else if(!strcmp(token, "unique")){
-				printf("list_unique\n");
+				// token : list name1
+				token = strtok(NULL, seps);
+				ll_index = ll_index_num(token);
+
+				// token : list name2
+				token = strtok(NULL, seps);
+
+				if(token){
+					ll_index2 = ll_index_num(token);
+					list_unique(llList[ll_index].link, llList[ll_index2].link,less,NULL);
+
+				}
+				else
+					list_unique(llList[ll_index].link, NULL ,less,NULL);
 			}
 
 			// CASE 1_13. list_max <list_name>
@@ -377,9 +462,357 @@ int main(){
 				struct list_item *f = list_entry(e, struct list_item, elem);
 				printf("%d\n",f->data);
 			}
+
+			// CASE 1_15. list_swap <list_name> <index1> <index2>
+			else if(!strcmp(token, "swap")){
+				// token : list name
+				token = strtok(NULL, seps);
+				ll_index = ll_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1);
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index2); 
+
+				list_swap(ll_index, index1, index2);
+			}
+		}
+
+		// CASE 2. hash
+		else if(!strcmp(token, "")){
+			token = strtok(NULL, seps);
+
+			// CASE 
+			if(!strcmp(token, "")){
+				token = strtok(NULL, seps);
+			}
+		}
+
+		// CASE 3. bitmap
+		else if(!strcmp(token, "bitmap")){
+			token = strtok(NULL, seps);
+
+			// CASE 3_1. bitmap_size <bitmap_name>
+			if(!strcmp(token, "size")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+				
+				bit_cnt_tmp = bitmap_size(bmList[bm_index].bm);
+				printf("%u\n", bitmap_size(bmList[bm_index].bm));
+			}
+
+			// CASE 3_2. bitmap_set
+			else if(!strcmp(token, "set")){
+				token = strtok(NULL, seps);
+
+				// CASE 3_7_1. bitmap_size_all <bitmap_name> <value(boolean)>
+				if(!strcmp(token, "all")){
+					// token : bitmap name
+					token = strtok(NULL, seps);
+					bm_index = bm_index_num(token);
+
+					// token : value
+					token = strtok(NULL, seps);
+					if(!strcmp(token, "true"))
+						value = 1;
+					else
+						value = 0;
+
+					bitmap_set_all(bmList[bm_index].bm, value);
+				}
+
+				// CASE 3_7_2. bitmap_size_multiple <bitmap_name> <index1> <index2> <value(boolean)>
+				else if(!strcmp(token, "multiple")){
+					// token : bitmap name
+					token = strtok(NULL, seps);
+					bm_index = bm_index_num(token);
+
+					// token : index1
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index); 
+
+					// token : index2
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index1); 
+
+					// token : value
+					token = strtok(NULL, seps);
+					if(!strcmp(token, "true"))
+						value = 1;
+					else
+						value = 0;
+					bitmap_set_multiple(bmList[bm_index].bm, index, index1, value);
+				}
+
+				// CASE 3_7_3. bitmap_set <bitmap_name> <index> <value(boolean)>
+				else{
+					// token : bitmap name
+					bm_index = bm_index_num(token);
+
+					// token : index
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index); 
+
+					// token : value
+					token = strtok(NULL, seps);
+					if(!strcmp(token, "true"))
+						value = 1;
+					else
+						value = 0;
+
+					bit_cnt_tmp = bitmap_size(bmList[bm_index].bm);
+
+					bitmap_set(bmList[bm_index].bm, index, value);
+				}
+			}
+
+			// CASE 3_3. bitmap_mark <bitmap_name> <index>
+			else if(!strcmp(token, "mark")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &bit_cnt_tmp); 
+
+				bitmap_mark(bmList[bm_index].bm, bit_cnt_tmp);
+			}
+
+			// CASE 3_4. bitmap_reset <bitmap_name> <index>
+			else if(!strcmp(token, "reset")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &bit_cnt_tmp); 
+
+				bitmap_reset(bmList[bm_index].bm, bit_cnt_tmp);
+			}
+
+			// CASE 3_5. bitmap_flip <bitmap_name> <index>
+			else if(!strcmp(token, "flip")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &bit_cnt_tmp); 
+
+				bitmap_flip(bmList[bm_index].bm, bit_cnt_tmp);
+			}
+
+			// CASE 3_6. bitmap_test <bitmap_name> <index>
+			else if(!strcmp(token, "test")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &bit_cnt_tmp); 
+
+				if(bitmap_test(bmList[bm_index].bm, bit_cnt_tmp))
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 3_7. bitmap_count <bitmap_name> <index1> <index2> <value(booolean)>
+			else if(!strcmp(token, "count")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1); 
+
+				// token : value
+				token = strtok(NULL, seps);
+				if(!strcmp(token, "true"))
+					value = 1;
+				else
+					value = 0;
+
+				bit_cnt_tmp = bitmap_count(bmList[bm_index].bm, index, index1, value);
+				printf("%u\n", bit_cnt_tmp);
+			}
+
+			// CASE 3_8. bitmap_contains  <bitmap_name> <index1> <index2> <value(booolean)>
+			else if(!strcmp(token, "contains")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1); 
+
+				// token : value
+				token = strtok(NULL, seps);
+				if(!strcmp(token, "true"))
+					value = 1;
+				else
+					value = 0;
+
+				if(bitmap_contains(bmList[bm_index].bm, index, index1, value))
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 3_9. bitmap_any <bitmap_name> <index1> <index2>
+			else if(!strcmp(token, "any")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1); 
+
+				if(bitmap_any(bmList[bm_index].bm, index, index1))
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 3_10. bitmap_none <bitmap_name> <index1> <index2>
+			else if(!strcmp(token, "none")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1); 
+
+				if(bitmap_none(bmList[bm_index].bm, index, index1))
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 3_11. bitmap_all <bitmap_name> <index1> <index2>
+			else if(!strcmp(token, "all")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				// token : index2
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index1); 
+
+				if(bitmap_all(bmList[bm_index].bm, index, index1))
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 3_12. bitmap_scan
+			else if(!strcmp(token, "scan")){
+				token = strtok(NULL, " ");
+
+				// CASE 3_12_1. bitmap_scan_and_flip <bitmap_name> <index1> <index2> <value(boolean)>
+				if(!strcmp(token, "and_flip")){
+					// token : bitmap name
+					token = strtok(NULL, seps);
+					bm_index = bm_index_num(token);
+
+					// token : index1
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index); 
+
+					// token : index2
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index1); 
+
+					// token : value
+					token = strtok(NULL, seps);
+					if(!strcmp(token, "true"))
+						value = 1;
+					else
+						value = 0;
+					bit_cnt_tmp = bitmap_scan_and_flip(bmList[bm_index].bm, index, index1, value);
+					printf("%u\n", bit_cnt_tmp);
+				}
+
+				// CASE 3_12_2. bitmap_scan <bitmap_name> <index1> <index2> <value(boolean)>
+				else{
+					// token : bitmap name
+					bm_index = bm_index_num(token);
+
+					// token : index1
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index); 
+
+					// token : index2
+					token = strtok(NULL, seps);
+					sscanf(token, "%d", &index1); 
+
+					// token : value
+					token = strtok(NULL, seps);
+					if(!strcmp(token, "true"))
+						value = 1;
+					else
+						value = 0;
+					bit_cnt_tmp = bitmap_scan(bmList[bm_index].bm, index, index1, value);
+					printf("%u\n", bit_cnt_tmp);
+				}
+			}
+
+			// CASE 3_13. bitmap_dump <bitmap_name>
+			else if(!strcmp(token, "dump")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				bitmap_dump(bmList[bm_index].bm);
+			}
+
+			// CASE 3_14. bitmap_expand <bitmap_name> <index>
+			else if(!strcmp(token, "expand")){
+				// token : bitmap name
+				token = strtok(NULL, seps);
+				bm_index = bm_index_num(token);
+
+				// token : index1
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &index); 
+
+				bmList[bm_index].bm = bitmap_expand(bmList[bm_index].bm, index);
+			}
 		}
 	}
 
-
 	return 0;
 }
+
