@@ -6,7 +6,7 @@ int main(){
 	char seps[4] = "\t _"; 
 	int del_index;
 	int ll_index, ll_index2, value, index, index1, index2, max_num, min_num;
-	int bm_index;
+	int bm_index, h_index;
 
 	while(1){
 		fgets(command, sizeof(command), stdin); // get command
@@ -39,6 +39,14 @@ int main(){
 			
 			// CASE 0_2_2. create hashtable <hashtable_name> - hashtable 생성
 			else if(!strcmp(token, "hashtable")){
+				// token : hashtable_name
+				token = strtok(NULL, seps);
+				strcpy(hList[hList_num].name, token);
+
+				hList[hList_num].hash = (struct hash*)malloc(sizeof(struct hash));
+				hash_init(hList[hList_num].hash, hash_hash_function, hash_less_function,NULL);
+				
+				hList_num++;
 			}
 
 			// CASE 0_2_3. create bitmap <bitmap_name> <bit_count> - bitmap 생성
@@ -70,6 +78,14 @@ int main(){
 					break;
 				}
 			}
+			// delete 하는 자료구조가 hash인지 확인, hash가 맞으면 flag = 2
+			for(i = 0; i < hList_num; i++){
+				if(!strcmp(token, hList[i].name)){
+					flag = 2;
+					del_index = i;
+					break;
+				}
+			}
 			// delete 하는 자료구조가 bitmap인지 확인, bitmap이 맞으면 flag = 3
 			for(i = 0; i < bmList_num; i++){
 				if(!strcmp(token, bmList[i].name)){
@@ -88,8 +104,18 @@ int main(){
 				llList_num--;
 			}
 
-			// 자료구조가 list(flag == 3) 인 경우
-			if(flag == 3){
+			// 자료구조가 hash(flag == 2) 인 경우
+			else if(flag == 2){
+				//hash_destroy(hList[del_index].hash, NULL);
+
+				for(i=del_index; i<9; i++){
+					hList[i] = hList[i+1];
+				}
+				hList_num--;
+			}
+
+			// 자료구조가 bitmap(flag == 3) 인 경우
+			else if(flag == 3){
 				bitmap_destroy(bmList[del_index].bm);
 				for(i=del_index; i<9; i++){
 					bmList[i] = bmList[i+1];
@@ -111,14 +137,9 @@ int main(){
 					ll_index = i;
 					break;
 				}
-				else if(!strcmp(token, bmList[i].name)){
-					flag = 3;
-					bm_index = i;
-					break;
-				}
 			}
 
-			// dumpdata 하는 자료구조가 dumpdata인지 확인, dumpdata가 맞으면 flag = 3
+			// dumpdata 하는 자료구조가 bitmap인지 확인, dumpdata가 맞으면 flag = 3
 			for(i = 0; i < bmList_num; i++){
 				if(!strcmp(token, bmList[i].name)){
 					flag = 3;
@@ -126,8 +147,15 @@ int main(){
 					break;
 				}
 			}
-			// dumpdata 하는 자료구조가 bitmap인지 확인, bitmap이 맞으면 flag = 2
+			// dumpdata 하는 자료구조가 hash인지 확인, bitmap이 맞으면 flag = 2
 			// 채워넣어야함
+			for(i = 0; i < hList_num; i++){
+				if(!strcmp(token, hList[i].name)){
+					flag = 2;
+					h_index = i;
+					break;
+				}
+			}
 
 
 			// 자료구조가 list(flag == 1) 인 경우
@@ -146,7 +174,23 @@ int main(){
 					printf("\n");
 			}
 
-			// 자료구조가 list(flag == 3) 인 경우
+			// 자료구조가 hash(flag == 2) 인 경우
+			else if(flag == 2){
+				struct hash_iterator i;
+
+				hash_first(&i,hList[h_index].hash);    
+				while(hash_next(&i)){
+					struct hash_item *f= hash_entry(hash_cur(&i),struct hash_item,elem);
+					printf("%d ",f->data);
+
+					flag = 0;
+				}
+				if(flag == 0)
+					printf("\n");
+			}
+
+
+			// 자료구조가 bitmap(flag == 3) 인 경우
 			else if(flag == 3){
 				for(i=0; i< bitmap_size(bmList[bm_index].bm);i++){
 					if(bitmap_test(bmList[bm_index].bm,i) == true) printf("1");
@@ -155,9 +199,6 @@ int main(){
 				printf("\n");
 			}
 
-			// CASE 0_5. command <list_name|hashtable_name|bitmap_name> [arguments] - 주어진 이름의 자료구조에 argument 이용하여 command 실행
-			else if(!strcmp(token, "command")){
-			}
 		}
 
 
@@ -479,15 +520,152 @@ int main(){
 
 				list_swap(ll_index, index1, index2);
 			}
+			// CASE 1_16. list_shuffle <list_name>
+			else if(!strcmp(token, "shuffle")){
+				// token : list name
+				token = strtok(NULL, seps);
+				ll_index = ll_index_num(token);
+				list_shuffle(llList[ll_index].link);
+			}
 		}
 
 		// CASE 2. hash
-		else if(!strcmp(token, "")){
+		else if(!strcmp(token, "hash")){
 			token = strtok(NULL, seps);
 
-			// CASE 
-			if(!strcmp(token, "")){
+			// CASE 2_1. hash_insert <hashtable_name> <value>
+			if(!strcmp(token, "insert")){
+				// token : hashtable name
 				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				// token : value
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &value);
+
+				struct hash_elem *e;
+				e = newhash_elem();
+
+				struct hash_item *f;
+				f = hash_entry(e, struct hash_item, elem);
+				f->data = value;
+
+				hash_insert(hList[h_index].hash, e);
+			}
+
+			// CASE 2_2. hash_replace <hashtable_name> <value>
+			if(!strcmp(token, "replace")){
+				// token : hashtable name
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				// token : value
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &value);
+
+				struct hash_elem *e;
+				e = newhash_elem();
+
+				struct hash_item *f;
+				f = hash_entry(e, struct hash_item, elem);
+				f->data = value;
+
+				hash_replace(hList[h_index].hash, e);
+			}
+
+			// CASE 2_3. hash_find <hashtable_name> <value>
+			if(!strcmp(token, "find")){
+				// token : hashtable name
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				// token : value
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &value);
+
+				struct hash_elem *e, *return_e;
+				e = newhash_elem();
+
+				struct hash_item *f;
+				f = hash_entry(e, struct hash_item, elem);
+				f->data = value;
+
+				return_e = hash_find(hList[h_index].hash, e);
+
+				if(return_e)
+					printf("%d\n",value);
+			}
+
+			// CASE 2_4. hash_delete <hashtable_name> <value>
+			if(!strcmp(token, "delete")){
+				// token : hashtable name
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				// token : value
+				token = strtok(NULL, seps);
+				sscanf(token, "%d", &value);
+
+				struct hash_elem *e;
+				e = newhash_elem();
+
+				struct hash_item *f;
+				f = hash_entry(e, struct hash_item, elem);
+				f->data = value;
+
+				hash_delete(hList[h_index].hash, e);
+			}
+
+			// CASE 2_5. hash_clear <hashtable_name>
+			if(!strcmp(token, "clear")){
+				// token : hashtable name
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				hash_clear(hList[h_index].hash, NULL);
+			}
+
+			// CASE 2_6. hash_size <hashtable_name>
+			if(!strcmp(token, "size")){
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				size_t size;
+
+				size = hash_size(hList[h_index].hash);
+
+				printf("%d\n", size);
+			}
+
+			// CASE 2_7. hash_empty <hashtable_name>
+			if(!strcmp(token, "empty")){
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+				
+				bool tf;
+
+				tf = hash_empty(hList[h_index].hash);
+
+				if(tf)
+					printf("true\n");
+				else
+					printf("false\n");
+			}
+
+			// CASE 2_8. hash_apply <hashtable_name> <func>
+			if(!strcmp(token, "apply")){
+				token = strtok(NULL, seps);
+				h_index = h_index_num(token);
+
+				// token : func
+				token = strtok(NULL, seps);
+
+				if(!strcmp(token, "square")){
+					hash_apply(hList[h_index].hash, &hash_square);
+				}
+				else if(!strcmp(token, "triple")){
+					hash_apply(hList[h_index].hash, &hash_triple);
+				}
 			}
 		}
 
@@ -815,4 +993,3 @@ int main(){
 
 	return 0;
 }
-

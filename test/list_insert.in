@@ -8,5 +8,7 @@ list_insert list0 1 4
 list_insert list0 0 5
 list_insert list0 5 6
 dumpdata list0
+list_shuffle list0
+dumpdata list0
 delete list0
 quit
